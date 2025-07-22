@@ -37,11 +37,9 @@ services:
 
   db:
     env_file:
-      - path: docker/.env # default
-        required: true
-      - path: docker/.env-local # optional override
-        required: false
-    image: postgres:16
+      - docker/.env
+      - docker/.env-local
+    image: postgres:15
     container_name: superset_db
     restart: unless-stopped
     volumes:
@@ -50,10 +48,8 @@ services:
 
   superset:
     env_file:
-      - path: docker/.env # default
-        required: true
-      - path: docker/.env-local # optional override
-        required: false
+      - docker/.env
+      - docker/.env-local
     image: *superset-image
     container_name: superset_app
     command: ["/app/docker/docker-bootstrap.sh", "app-gunicorn"]
@@ -65,16 +61,16 @@ services:
       superset-init:
         condition: service_completed_successfully
     volumes: *superset-volumes
+    environment:
+      SUPERSET_LOG_LEVEL: "${SUPERSET_LOG_LEVEL:-info}"
 
   superset-init:
     image: *superset-image
     container_name: superset_init
     command: ["/app/docker/docker-init.sh"]
     env_file:
-      - path: docker/.env # default
-        required: true
-      - path: docker/.env-local # optional override
-        required: false
+      - docker/.env
+      - docker/.env-local
     depends_on:
       db:
         condition: service_started
@@ -84,16 +80,17 @@ services:
     volumes: *superset-volumes
     healthcheck:
       disable: true
+    environment:
+      SUPERSET_LOAD_EXAMPLES: "${SUPERSET_LOAD_EXAMPLES:-yes}"
+      SUPERSET_LOG_LEVEL: "${SUPERSET_LOG_LEVEL:-info}"
 
   superset-worker:
     image: *superset-image
     container_name: superset_worker
     command: ["/app/docker/docker-bootstrap.sh", "worker"]
     env_file:
-      - path: docker/.env # default
-        required: true
-      - path: docker/.env-local # optional override
-        required: false
+      - docker/.env
+      - docker/.env-local
     restart: unless-stopped
     depends_on:
       superset-init:
@@ -106,16 +103,16 @@ services:
           "CMD-SHELL",
           "celery -A superset.tasks.celery_app:app inspect ping -d celery@$$HOSTNAME",
         ]
+    environment:
+      SUPERSET_LOG_LEVEL: "${SUPERSET_LOG_LEVEL:-info}"
 
   superset-worker-beat:
     image: *superset-image
     container_name: superset_worker_beat
     command: ["/app/docker/docker-bootstrap.sh", "beat"]
     env_file:
-      - path: docker/.env # default
-        required: true
-      - path: docker/.env-local # optional override
-        required: false
+      - docker/.env
+      - docker/.env-local
     restart: unless-stopped
     depends_on:
       superset-init:
@@ -124,6 +121,8 @@ services:
     volumes: *superset-volumes
     healthcheck:
       disable: true
+    environment:
+      SUPERSET_LOG_LEVEL: "${SUPERSET_LOG_LEVEL:-info}"
 
 volumes:
   superset_home:
